@@ -43,6 +43,10 @@ import frc.robot.subsystems.CommandSwerveDrivetrain;
  *   - Y Button: [Available for future use]
  *   - Left Bumper: Reset field-centric heading (zero gyro to current direction)
  *   - Right Bumper: [Available for future use]
+ *   - D-Pad Up: Lock rotation to 0° (forward) while allowing free translation
+ *   - D-Pad Right: Lock rotation to 90° (right) while allowing free translation
+ *   - D-Pad Down: Lock rotation to 180° (backward) while allowing free translation
+ *   - D-Pad Left: Lock rotation to 270° (left) while allowing free translation
  *   - Back + X: SysId Dynamic Reverse
  *   - Back + Y: SysId Dynamic Forward
  *   - Start + X: SysId Quasistatic Reverse
@@ -68,6 +72,11 @@ public class RobotContainer {
 
     /** X Formation request - locks wheels in X pattern for maximum resistance to pushing */
     private final SwerveRequest.PointWheelsAt xFormation = new SwerveRequest.PointWheelsAt();
+
+    /** Field-centric drive with locked rotation angle - allows translation while holding heading */
+    private final SwerveRequest.FieldCentricFacingAngle driveWithLockedRotation = new SwerveRequest.FieldCentricFacingAngle()
+            .withDeadband(MaxSpeed * 0.1)
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -134,6 +143,44 @@ public class RobotContainer {
         // Wheels are angled: FL=45°, FR=135°, BL=-45° (315°), BR=-135° (225°)
         joystick.x().whileTrue(drivetrain.applyRequest(() ->
             xFormation.withModuleDirection(new Rotation2d(Math.PI / 4)) // 45 degrees for X formation
+        ));
+
+        // ==================
+        // D-PAD - LOCKED ROTATION DRIVING
+        // ==================
+        // D-pad locks the robot's rotation to cardinal directions while allowing free translation.
+        // Robot will automatically maintain the locked heading while you drive around.
+
+        // D-Pad Up: Lock rotation to 0° (facing forward)
+        joystick.pov(0).whileTrue(drivetrain.applyRequest(() ->
+            driveWithLockedRotation
+                .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+                .withTargetDirection(Rotation2d.kZero) // 0 degrees
+        ));
+
+        // D-Pad Right: Lock rotation to 90° (facing right)
+        joystick.pov(90).whileTrue(drivetrain.applyRequest(() ->
+            driveWithLockedRotation
+                .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+                .withTargetDirection(Rotation2d.fromDegrees(90))
+        ));
+
+        // D-Pad Down: Lock rotation to 180° (facing backward)
+        joystick.pov(180).whileTrue(drivetrain.applyRequest(() ->
+            driveWithLockedRotation
+                .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+                .withTargetDirection(Rotation2d.k180deg) // 180 degrees
+        ));
+
+        // D-Pad Left: Lock rotation to 270° (facing left)
+        joystick.pov(270).whileTrue(drivetrain.applyRequest(() ->
+            driveWithLockedRotation
+                .withVelocityX(-joystick.getLeftY() * MaxSpeed)
+                .withVelocityY(-joystick.getLeftX() * MaxSpeed)
+                .withTargetDirection(Rotation2d.fromDegrees(270))
         ));
 
         // ==================
