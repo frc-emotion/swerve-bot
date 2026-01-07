@@ -76,7 +76,8 @@ public class RobotContainer {
     /** Field-centric drive with locked rotation angle - allows translation while holding heading */
     private final SwerveRequest.FieldCentricFacingAngle driveWithLockedRotation = new SwerveRequest.FieldCentricFacingAngle()
             .withDeadband(MaxSpeed * 0.1)
-            .withDriveRequestType(DriveRequestType.OpenLoopVoltage);
+            .withDriveRequestType(DriveRequestType.OpenLoopVoltage)
+            .withRotationalDeadband(MaxAngularRate * 0.1); // Add rotational deadband
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -85,6 +86,11 @@ public class RobotContainer {
     public final CommandSwerveDrivetrain drivetrain = TunerConstants.createDrivetrain();
 
     public RobotContainer() {
+        // Configure the heading controller for locked rotation driving
+        // These gains control how aggressively the robot maintains its heading
+        driveWithLockedRotation.HeadingController.setPID(8, 0, 0);
+        driveWithLockedRotation.HeadingController.enableContinuousInput(-Math.PI, Math.PI);
+
         configureBindings();
     }
 
