@@ -21,17 +21,53 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine.Direction;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.CommandSwerveDrivetrain;
 
+/**
+ * This class is where the bulk of the robot should be declared. Since Command-based is a
+ * "declarative" paradigm, very little robot logic should actually be handled in the {@link Robot}
+ * periodic methods (other than the scheduler calls). Instead, the structure of the robot (including
+ * subsystems, commands, and trigger mappings) should be declared here.
+ *
+ * CONTROLLER LAYOUT:
+ * ==================
+ * Left Stick:
+ *   - X-axis (left/right): Strafe left/right
+ *   - Y-axis (up/down): Drive forward/backward
+ *
+ * Right Stick:
+ *   - X-axis (left/right): Rotate robot counterclockwise/clockwise
+ *
+ * Buttons:
+ *   - A Button: Apply brake (holds wheels in current position)
+ *   - B Button: Point all wheels in direction of left stick
+ *   - X Button: X Formation (defensive lock - resists pushing from all directions)
+ *   - Y Button: [Available for future use]
+ *   - Left Bumper: Reset field-centric heading (zero gyro to current direction)
+ *   - Right Bumper: [Available for future use]
+ *   - Back + X: SysId Dynamic Reverse
+ *   - Back + Y: SysId Dynamic Forward
+ *   - Start + X: SysId Quasistatic Reverse
+ *   - Start + Y: SysId Quasistatic Forward
+ */
 public class RobotContainer {
     private final SendableChooser<Command> autoChooser = new SendableChooser<Command>();
     private double MaxSpeed = TunerConstants.kSpeedAt12Volts.in(MetersPerSecond); // kSpeedAt12Volts desired top speed
     private double MaxAngularRate = RotationsPerSecond.of(1.5).in(RadiansPerSecond); // 3/4 of a rotation per second max angular velocity
 
     /* Setting up bindings for necessary control of the swerve drive platform */
+
+    /** Field-centric drive request for normal driving */
     private final SwerveRequest.FieldCentric drive = new SwerveRequest.FieldCentric()
             .withDeadband(MaxSpeed * 0.1).withRotationalDeadband(MaxAngularRate * 0.1) // Add a 10% deadband
             .withDriveRequestType(DriveRequestType.OpenLoopVoltage); // Use open-loop control for drive motors
+
+    /** Brake request - holds wheels in current position to stop robot */
     private final SwerveRequest.SwerveDriveBrake brake = new SwerveRequest.SwerveDriveBrake();
+
+    /** Point wheels request - aims all wheels in the direction of the left joystick */
     private final SwerveRequest.PointWheelsAt point = new SwerveRequest.PointWheelsAt();
+
+    /** X Formation request - locks wheels in X pattern for maximum resistance to pushing */
+    private final SwerveRequest.PointWheelsAt xFormation = new SwerveRequest.PointWheelsAt();
 
     private final Telemetry logger = new Telemetry(MaxSpeed);
 
@@ -43,7 +79,16 @@ public class RobotContainer {
         configureBindings();
     }
 
+    /**
+     * Configure button bindings for the driver controller.
+     *
+     * Default Command: Field-centric driving using left stick for translation,
+     *                  right stick X-axis for rotation.
+     */
     private void configureBindings() {
+        // ==================
+        // DEFAULT COMMAND
+        // ==================
         // Note that X is defined as forward according to WPILib convention,
         // and Y is defined as to the left according to WPILib convention.
         drivetrain.setDefaultCommand(
@@ -55,6 +100,9 @@ public class RobotContainer {
             )
         );
 
+        // ==================
+        // DISABLED MODE
+        // ==================
         // Idle while the robot is disabled. This ensures the configured
         // neutral mode is applied to the drive motors while disabled.
         final var idle = new SwerveRequest.Idle();
@@ -62,11 +110,42 @@ public class RobotContainer {
             drivetrain.applyRequest(() -> idle).ignoringDisable(true)
         );
 
+        // ==================
+        // A BUTTON - BRAKE
+        // ==================
+        // Applies brake to all drive motors, holding wheels in current orientation.
+        // Actively resists movement but wheels stay in their current angle.
         joystick.a().whileTrue(drivetrain.applyRequest(() -> brake));
+
+        // ==================
+        // B BUTTON - POINT WHEELS
+        // ==================
+        // Points all 4 wheels in the direction of the left joystick.
+        // Does not drive, just orients the wheels. Useful for setup or testing.
         joystick.b().whileTrue(drivetrain.applyRequest(() ->
             point.withModuleDirection(new Rotation2d(-joystick.getLeftY(), -joystick.getLeftX()))
         ));
 
+        // ==================
+        // X BUTTON - X FORMATION (DEFENSIVE LOCK)
+        // ==================
+        // Forms an X pattern with the wheels for maximum resistance to pushing.
+        // This is the best defensive position to prevent being moved by other robots.
+        // Wheels are angled: FL=45°, FR=135°, BL=-45° (315°), BR=-135° (225°)
+        joystick.x().whileTrue(drivetrain.applyRequest(() ->
+            xFormation.withModuleDirection(new Rotation2d(Math.PI / 4)) // 45 degrees for X formation
+        ));
+
+        // ==================
+        // LEFT BUMPER - RESET GYRO
+        // ==================
+        // Resets the field-centric heading to make the current direction "forward".
+        // Useful when starting in a specific orientation or if gyro drift occurs.
+        joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
+
+        // ==================
+        // SYSID ROUTINES (for characterization/tuning)
+        // ==================
         // Run SysId routines when holding back/start and X/Y.
         // Note that each routine should be run exactly once in a single log.
         joystick.back().and(joystick.y()).whileTrue(drivetrain.sysIdDynamic(Direction.kForward));
@@ -74,9 +153,9 @@ public class RobotContainer {
         joystick.start().and(joystick.y()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kForward));
         joystick.start().and(joystick.x()).whileTrue(drivetrain.sysIdQuasistatic(Direction.kReverse));
 
-        // reset the field-centric heading on left bumper press
-        joystick.leftBumper().onTrue(drivetrain.runOnce(() -> drivetrain.seedFieldCentric()));
-
+        // ==================
+        // TELEMETRY
+        // ==================
         drivetrain.registerTelemetry(logger::telemeterize);
     }
 

@@ -144,6 +144,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             startSimThread();
         }
 
+        seedFieldCentric();
         configureAutobuilder();
     }
 
@@ -171,6 +172,7 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
             startSimThread();
         }
 
+        seedFieldCentric();
         configureAutobuilder();
     }
 
@@ -212,7 +214,8 @@ public class CommandSwerveDrivetrain extends TunerSwerveDrivetrain implements Su
         if (Utils.isSimulation()) {
             startSimThread();
         }
-
+        
+        seedFieldCentric();
         configureAutobuilder();
     }
 
